@@ -53,13 +53,15 @@ type SQLiteStore struct {
 
 // NewSQLiteStore opens (or creates) the SQLite database and ensures schema.
 func NewSQLiteStore(dbPath string, logger *slog.Logger) (*SQLiteStore, error) {
-	db, err := sql.Open("sqlite", dbPath+"?_busy_timeout=5000")
+	dsn := dbPath + "?_busy_timeout=10000&_pragma=journal_mode=WAL&_pragma=synchronous=NORMAL&_pragma=cache_size=-8000"
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	db.SetMaxOpenConns(1) // Safe for WAL mode with pure Go driver in single process
+	db.SetMaxOpenConns(1) // serialize writes; WAL allows concurrent reads
 	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
 
 	if err := db.PingContext(context.Background()); err != nil {
 		return nil, fmt.Errorf("ping sqlite: %w", err)
@@ -185,9 +187,13 @@ func (s *SQLiteStore) ListJobs(ctx context.Context, limit int) ([]*job.Job, erro
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, type, status, items_json, worker_count, created_at, updated_at, completed_at
-		FROM jobs
-		ORDER BY created_at DESC
+		SELECT j.id, j.type, j.status, j.items_json, j.worker_count,
+		       j.created_at, j.updated_at, j.completed_at,
+		       COALESCE(r.cnt, 0)
+		FROM jobs j
+		LEFT JOIN (SELECT job_id, COUNT(*) AS cnt FROM job_results GROUP BY job_id) r
+		  ON r.job_id = j.id
+		ORDER BY j.created_at DESC
 		LIMIT ?
 	`, limit)
 	if err != nil {
@@ -203,7 +209,7 @@ func (s *SQLiteStore) ListJobs(ctx context.Context, limit int) ([]*job.Job, erro
 
 		if err := rows.Scan(
 			&j.ID, &j.Type, &j.Status, &itemsJSON, &j.WorkerCount,
-			&j.CreatedAt, &j.UpdatedAt, &completedAt,
+			&j.CreatedAt, &j.UpdatedAt, &completedAt, &j.ResultCount,
 		); err != nil {
 			return nil, fmt.Errorf("scan list job: %w", err)
 		}
@@ -213,12 +219,6 @@ func (s *SQLiteStore) ListJobs(ctx context.Context, limit int) ([]*job.Job, erro
 		if completedAt.Valid {
 			j.CompletedAt = &completedAt.Time
 		}
-
-		// For list we load lightweight results count only (avoid heavy load)
-		var resCount int
-		s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM job_results WHERE job_id = ?`, j.ID).Scan(&resCount)
-		j.ResultCount = resCount
-		j.Results = make([]job.ItemResult, 0, resCount) // just to set length for progress
 
 		jobs = append(jobs, &j)
 	}
@@ -260,13 +260,7 @@ func (s *SQLiteStore) UpdateJob(ctx context.Context, id string, updates map[stri
 }
 
 func (s *SQLiteStore) AppendResult(ctx context.Context, jobID string, result job.ItemResult) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
-
-	_, err = tx.ExecContext(ctx, `
+	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO job_results (job_id, url, status_code, latency_ms, title, content_length, hash, error, processed_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, jobID, result.URL, result.StatusCode, result.LatencyMs, result.Title,
@@ -274,14 +268,7 @@ func (s *SQLiteStore) AppendResult(ctx context.Context, jobID string, result job
 	if err != nil {
 		return fmt.Errorf("insert result: %w", err)
 	}
-
-	// Update job updated_at
-	_, err = tx.ExecContext(ctx, `UPDATE jobs SET updated_at = ? WHERE id = ?`, time.Now().UTC(), jobID)
-	if err != nil {
-		return fmt.Errorf("update job timestamp: %w", err)
-	}
-
-	return tx.Commit()
+	return nil
 }
 
 func (s *SQLiteStore) CancelJob(ctx context.Context, id string) error {

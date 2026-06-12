@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concurro • Concurrent Job Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .stat-card { transition: transform .1s ease; }
+    .result-row:hover { background-color: #f8fafc; }
+    .log-line { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.75rem; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-200">
+  <div class="max-w-7xl mx-auto px-6 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-x-3">
+        <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
+          <i class="fa-solid fa-bolt text-white text-2xl"></i>
+        </div>
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight">Concurro</h1>
+          <p class="text-emerald-400 text-sm -mt-1">High-concurrency job processing</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-x-4 text-sm">
+        <div class="px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-800 flex items-center gap-x-2">
+          <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+          <span id="pool-status">Pool running</span>
+        </div>
+        <a href="https://github.com/bhavyavj/Concurro" target="_blank" class="flex items-center gap-x-2 text-slate-400 hover:text-slate-200">
+          <i class="fa-brands fa-github"></i>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- What is this? (for you + recruiters) -->
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 mb-8 text-sm">
+      <div class="font-semibold text-emerald-400 mb-2">What real problems does Concurro solve?</div>
+      <div class="text-slate-300">
+        Many backend systems need to do <strong>lots of independent work quickly and safely</strong> (e.g. check 10,000 links, process thousands of uploaded files, analyze logs, send bulk notifications, generate reports).
+        <br><br>
+        Doing them one-by-one is too slow. Concurro gives you a <strong>controlled pool of concurrent workers</strong> (Go goroutines) + a queue + job tracking.
+        <br><br>
+        <strong>Current examples built-in:</strong><br>
+        • <strong>Bulk URL Health Checker</strong>: Fetch many websites in parallel, measure speed, detect problems (real use: monitoring, SEO, link validation).<br>
+        • <strong>Log Analyzer</strong>: Paste log lines and detect ERROR/WARN levels concurrently (real use: processing server/application logs at scale).<br><br>
+        The same architecture powers email queues, data pipelines, file processors, and background job systems in real companies.
+      </div>
+      <div class="mt-3 text-xs text-slate-400">
+        Pick a job type above → submit → watch ACTIVE WORKERS rise. This is the core skill this project demonstrates.
+      </div>
+    </div>
+
+    <!-- Live Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <div class="text-slate-400 text-xs tracking-widest">ACTIVE WORKERS</div>
+        <div id="active-workers" class="text-4xl font-semibold tabular-nums mt-1 text-emerald-400">0</div>
+      </div>
+      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <div class="text-slate-400 text-xs tracking-widest">QUEUE DEPTH</div>
+        <div id="queue-depth" class="text-4xl font-semibold tabular-nums mt-1">0</div>
+      </div>
+      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <div class="text-slate-400 text-xs tracking-widest">JOBS RUNNING</div>
+        <div id="jobs-running" class="text-4xl font-semibold tabular-nums mt-1">0</div>
+      </div>
+      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <div class="text-slate-400 text-xs tracking-widest">ITEMS PROCESSED</div>
+        <div id="items-processed" class="text-4xl font-semibold tabular-nums mt-1">0</div>
+      </div>
+    </div>
+
+    <!-- Submit Form -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-semibold">Submit Batch Job</h2>
+          <p class="text-sm text-slate-400">One URL per line. A pool of workers will fetch + analyze them <strong>in parallel</strong>.</p>
+        </div>
+        <button onclick="submitDemoJob()" 
+                class="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium flex items-center gap-x-2">
+          <i class="fa-solid fa-play mr-1"></i>
+          Submit 25 Demo URLs
+        </button>
+      </div>
+
+      <form id="job-form" onsubmit="submitJob(event)">
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div class="lg:col-span-4">
+            <div class="mb-2 flex items-center gap-3">
+              <select id="job_type" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm">
+                <option value="url_batch">Bulk URL Health Checker (fetch + analyze websites)</option>
+                <option value="log_analyze">Log Analyzer (paste log lines → detect ERROR/WARN)</option>
+              </select>
+            </div>
+            <textarea id="items_raw" rows="4" placeholder="https://golang.org&#10;https://github.com&#10;https://example.com"
+                      class="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl p-4 text-sm font-mono outline-none resize-y"></textarea>
+            <div class="text-[10px] text-slate-500 mt-1">Choose the type of work above. Both run through the same concurrent worker pool.</div>
+          </div>
+          <div class="lg:col-span-1 flex flex-col">
+            <label class="text-xs text-slate-400 mb-1.5">WORKER COUNT (optional)</label>
+            <input type="number" id="worker_count" value="" placeholder="default"
+                   class="bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm mb-3">
+            <button type="submit"
+                    class="mt-auto bg-white text-slate-950 hover:bg-slate-200 font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-x-2">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>Submit Job</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Jobs List -->
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-xl font-semibold">Recent Jobs</h2>
+      <button onclick="loadJobs()" 
+              class="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center gap-x-1.5">
+        <i class="fa-solid fa-sync text-xs"></i> <span>Refresh</span>
+      </button>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-800 text-slate-400">
+            <th class="text-left py-3 px-6 font-medium">ID</th>
+            <th class="text-left py-3 px-4 font-medium">Status</th>
+            <th class="text-left py-3 px-4 font-medium">Progress</th>
+            <th class="text-left py-3 px-4 font-medium">Items</th>
+            <th class="text-left py-3 px-4 font-medium">Submitted</th>
+            <th class="text-right py-3 px-6 font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="jobs-tbody" class="divide-y divide-slate-800">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Selected Job Detail -->
+    <div id="job-detail" class="hidden mt-8 bg-slate-900 border border-slate-800 rounded-3xl p-6">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <span class="text-emerald-400 text-xs tracking-[2px]">SELECTED JOB</span>
+          <h3 id="detail-id" class="font-mono text-lg"></h3>
+        </div>
+        <button onclick="hideDetail()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times fa-lg"></i></button>
+      </div>
+
+      <div id="detail-progress" class="mb-6"></div>
+
+      <div class="overflow-auto max-h-[420px]">
+        <table class="w-full text-xs">
+          <thead class="sticky top-0 bg-slate-900">
+            <tr class="border-b border-slate-700 text-slate-400">
+              <th class="text-left py-2 pr-4">URL</th>
+              <th class="text-center py-2">Status</th>
+              <th class="text-right py-2 px-3">Latency</th>
+              <th class="text-left py-2 px-3">Title / Error</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody" class="font-mono"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '';
+    let pollInterval = null;
+
+    async function fetchStats() {
+      try {
+        const res = await fetch(API + '/api/stats');
+        const data = await res.json();
+        document.getElementById('active-workers').textContent = data.active_workers ?? 0;
+        document.getElementById('queue-depth').textContent = data.queue_depth ?? 0;
+      } catch (e) {}
+    }
+
+    async function loadJobs() {
+      const tbody = document.getElementById('jobs-tbody');
+      tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-slate-500">Loading...</td></tr>';
+
+      try {
+        const res = await fetch(API + '/api/jobs');
+        const jobs = await res.json();
+
+        let running = 0;
+        let processed = 0;
+        tbody.innerHTML = '';
+
+        if (!jobs || jobs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">No jobs yet. Submit one above!</td></tr>';
+          return;
+        }
+
+        jobs.forEach(j => {
+          if (j.status === 'running') running++;
+          processed += (j.results || []).length;
+
+          const progress = j.progress || 0;
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-slate-800/60 cursor-pointer';
+          row.onclick = () => showJobDetail(j.id);
+
+          const statusBadge = statusClass(j.status);
+          const actionBtn = j.status === 'running' 
+            ? '<button onclick="event.stopImmediatePropagation(); cancelJob(\'' + j.id + '\');" class="text-red-400 hover:text-red-300 text-xs px-3 py-1">Cancel</button>'
+            : '<button onclick="event.stopImmediatePropagation(); showJobDetail(\'' + j.id + '\');" class="text-emerald-400 hover:text-emerald-300 text-xs">View results</button>';
+
+          row.innerHTML = 
+            '<td class="px-6 py-3 font-mono text-emerald-400 text-xs">' + j.id + '</td>' +
+            '<td class="px-4 py-3"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-medium ' + statusBadge + '">' + j.status + '</span></td>' +
+            '<td class="px-4 py-3">' +
+              '<div class="w-28 bg-slate-800 rounded h-1.5 overflow-hidden">' +
+                '<div class="h-1.5 bg-emerald-500" style="width: ' + progress + '%"></div>' +
+              '</div>' +
+              '<div class="text-[10px] mt-0.5 text-slate-400">' + (j.done || 0) + ' / ' + (j.total_items || (j.items ? j.items.length : 0)) + '</div>' +
+            '</td>' +
+            '<td class="px-4 py-3 text-slate-400">' + (j.total_items || (j.items ? j.items.length : 0)) + '</td>' +
+            '<td class="px-4 py-3 text-slate-400 text-xs">' + new Date(j.created_at).toLocaleTimeString() + '</td>' +
+            '<td class="px-6 py-3 text-right">' + actionBtn + '</td>';
+
+          tbody.appendChild(row);
+        });
+
+        document.getElementById('jobs-running').textContent = running;
+        document.getElementById('items-processed').textContent = processed;
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-red-400">Failed to load jobs</td></tr>';
+      }
+    }
+
+    function statusClass(status) {
+      if (status === 'running') return 'bg-emerald-500/10 text-emerald-400';
+      if (status === 'completed') return 'bg-blue-500/10 text-blue-400';
+      if (status === 'cancelled') return 'bg-amber-500/10 text-amber-400';
+      if (status === 'failed') return 'bg-red-500/10 text-red-400';
+      return 'bg-slate-700 text-slate-300';
+    }
+
+    async function submitJob(e) {
+      e.preventDefault();
+      const itemsRaw = document.getElementById('items_raw').value.trim();
+      const wc = parseInt(document.getElementById('worker_count').value) || 0;
+      const jobType = document.getElementById('job_type').value || 'url_batch';
+
+      if (!itemsRaw) {
+        alert("Please enter items (URLs or log lines)");
+        return;
+      }
+
+      const body = { type: jobType, items_raw: itemsRaw };
+      if (wc > 0) body.worker_count = wc;
+
+      const res = await fetch(API + '/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        document.getElementById('items_raw').value = '';
+        loadJobs();
+        setTimeout(fetchStats, 300);
+      } else {
+        const text = await res.text();
+        alert("Error: " + text);
+      }
+    }
+
+    async function submitDemoJob() {
+      const demoURLs = [
+        "https://golang.org", "https://github.com", "https://httpbin.org/status/200",
+        "https://example.com", "https://jsonplaceholder.typicode.com/posts/1",
+        "https://httpbin.org/json", "https://www.wikipedia.org", "https://news.ycombinator.com",
+        "https://www.google.com", "https://stackoverflow.com", "https://reddit.com",
+        "https://httpbin.org/delay/1", "https://httpbin.org/headers",
+        "https://www.cloudflare.com", "https://www.fastly.com"
+      ].slice(0, 25);
+
+      const res = await fetch(API + '/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: "url_batch", items: demoURLs })
+      });
+
+      if (res.ok) {
+        // Make sure the selector shows the right type
+        document.getElementById('job_type').value = 'url_batch';
+        loadJobs();
+      }
+    }
+
+    async function showJobDetail(id) {
+      const detail = document.getElementById('job-detail');
+      detail.classList.remove('hidden');
+
+      try {
+        const res = await fetch(API + '/api/jobs/' + id);
+        const data = await res.json();
+        const j = data.job || data;
+
+        document.getElementById('detail-id').textContent = j.id;
+
+        const prog = data.progress || 0;
+        document.getElementById('detail-progress').innerHTML = 
+          '<div class="flex justify-between text-xs mb-1 text-slate-400">' +
+            '<div>' + (data.done || 0) + ' of ' + (data.total || (j.items ? j.items.length : 0)) + ' items processed</div>' +
+            '<div class="font-mono">' + prog + '%</div>' +
+          '</div>' +
+          '<div class="h-2 bg-slate-800 rounded-full overflow-hidden">' +
+            '<div class="h-2 bg-emerald-500 transition-all" style="width: ' + prog + '%"></div>' +
+          '</div>';
+
+        const tbody = document.getElementById('results-tbody');
+        tbody.innerHTML = '';
+
+        const results = j.results || [];
+        if (results.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-slate-500">No results yet — workers are processing...</td></tr>';
+          return;
+        }
+
+        results.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.className = 'result-row border-b border-slate-800';
+          const statusHTML = r.error 
+            ? '<span class="text-red-400">' + r.error + '</span>' 
+            : '<span class="text-emerald-400">' + r.status_code + '</span>';
+
+          tr.innerHTML = 
+            '<td class="py-2 pr-4 truncate max-w-[380px]">' + r.url + '</td>' +
+            '<td class="py-2 text-center">' + statusHTML + '</td>' +
+            '<td class="py-2 text-right px-3 tabular-nums">' + r.latency_ms + 'ms</td>' +
+            '<td class="py-2 px-3 text-slate-400 truncate max-w-[340px]">' + (r.title || r.error || '') + '</td>';
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function hideDetail() {
+      document.getElementById('job-detail').classList.add('hidden');
+    }
+
+    async function cancelJob(id) {
+      if (!confirm('Cancel this job?')) return;
+      await fetch(API + '/api/jobs/' + id + '/cancel', { method: 'POST' });
+      loadJobs();
+    }
+
+    async function refreshAll() {
+      await Promise.all([fetchStats(), loadJobs()]);
+    }
+
+    function startPolling() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(refreshAll, 1400);
+    }
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement.tagName === 'BODY') {
+        e.preventDefault();
+        document.getElementById('items_raw').focus();
+      }
+    });
+
+    // Boot
+    (function init() {
+      refreshAll();
+      startPolling();
+    })();
+  </script>
+</body>
+</html>

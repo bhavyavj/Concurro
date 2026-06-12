@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  concurro:
+    build: .
+    image: concurro:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - CONCURRO_ADDR=:8080
+      - CONCURRO_DEFAULT_WORKERS=8
+      - CONCURRO_DB_PATH=/app/concurro.db
+    volumes:
+      - concurro-data:/app
+    restart: unless-stopped
+
+volumes:
+  concurro-data:

@@ -1,0 +1,15 @@
+# Build artifacts
+bin/
+*.db
+*.db-shm
+*.db-wal
+
+# Git / IDE
+.git/
+.idea/
+.vscode/
+*.md
+
+# Misc
+Dockerfile*
+docker-compose*.yml

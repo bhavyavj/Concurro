@@ -31,8 +31,6 @@ func NewRegistry() *Registry {
 	r := &Registry{
 		processors: make(map[string]Processor),
 	}
-	// Register built-in processors here.
-	// These represent real-world use cases the platform can handle.
 	r.Register("url_batch", NewURLProcessor())
 	r.Register("log_analyze", NewLogProcessor())
 	return r
@@ -126,8 +124,8 @@ func (p *URLProcessor) Process(ctx context.Context, item string) (job.ItemResult
 	return result, nil
 }
 
-// LogProcessor demonstrates concurrent log analysis — a very common real-world use case
-// (think tailing/processing application logs, audit logs, or server logs at scale).
+// LogProcessor classifies log lines by severity (ERROR, WARN, INFO)
+// and computes a short content hash for deduplication.
 type LogProcessor struct{}
 
 func NewLogProcessor() *LogProcessor {
@@ -140,10 +138,8 @@ func (p *LogProcessor) Process(ctx context.Context, item string) (job.ItemResult
 		ProcessedAt: time.Now().UTC(),
 	}
 
-	// Simulate some processing work (real version would do regex, parsing, etc.)
 	start := time.Now()
 
-	// Very simple analysis (production version would be much richer)
 	upper := strings.ToUpper(item)
 	level := "INFO"
 	if strings.Contains(upper, "ERROR") || strings.Contains(upper, "FATAL") || strings.Contains(upper, "CRITICAL") {
@@ -155,11 +151,8 @@ func (p *LogProcessor) Process(ctx context.Context, item string) (job.ItemResult
 
 	result.Title = level
 	result.LatencyMs = time.Since(start).Milliseconds()
-
-	// "Content length" can represent line length or bytes processed
 	result.ContentLength = int64(len(item))
 
-	// Hash can be used for a simple signature of the line
 	sum := sha256.Sum256([]byte(item))
 	result.Hash = hex.EncodeToString(sum[:])[:12]
 

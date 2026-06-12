@@ -13,8 +13,8 @@ PORT := 8080
 ADDR := :$(PORT)
 
 build:
-	$(GO) build -o bin/$(BINARY) ./cmd/api
-	$(GO) build -o bin/$(BINARY)-cli ./cmd/cli
+	$(GO) build $(GOFLAGS) -o bin/$(BINARY) ./cmd/api
+	$(GO) build $(GOFLAGS) -o bin/$(BINARY)-cli ./cmd/cli
 
 run: build
 	./bin/$(BINARY)

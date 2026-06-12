@@ -4,19 +4,219 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Concurro • Concurrent Job Platform</title>
-  <!-- 
-    Using Tailwind Play CDN for this single-file, zero-build demo.
-    This is intentional for a clean portfolio example (the entire UI is one HTML file served by Go).
-    In a real production app we would use the Tailwind CLI or PostCSS.
-    The warning in console is harmless for this demo.
-  -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    /* Icon sizing helpers */
+    .icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .icon-lg { width: 1.25em; height: 1.25em; }
+    .icon-xl { width: 1.5em; height: 1.5em; }
+    .icon-2xl { width: 2em; height: 2em; }
+    /* bolt and github use fill, not stroke */
+    .icon-fill { fill: currentColor; stroke: none; }
+  </style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #020617; color: #e2e8f0; }
+
+    /* Layout */
+    .max-w-7xl { max-width: 80rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+    .p-4 { padding: 1rem; } .p-5 { padding: 1.25rem; } .p-6 { padding: 1.5rem; }
+    .px-3 { padding-left: .75rem; padding-right: .75rem; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+    .px-8 { padding-left: 2rem; padding-right: 2rem; }
+    .py-1\.5 { padding-top: .375rem; padding-bottom: .375rem; }
+    .py-2 { padding-top: .5rem; padding-bottom: .5rem; }
+    .py-2\.5 { padding-top: .625rem; padding-bottom: .625rem; }
+    .py-3 { padding-top: .75rem; padding-bottom: .75rem; }
+    .py-5 { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+    .py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+    .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+    .py-10 { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+    .px-2 { padding-left: .5rem; padding-right: .5rem; }
+    .pr-4 { padding-right: 1rem; }
+    .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .pt-0 { padding-top: 0; }
+    .mb-1 { margin-bottom: .25rem; } .mb-1\.5 { margin-bottom: .375rem; }
+    .mb-2 { margin-bottom: .5rem; } .mb-3 { margin-bottom: .75rem; }
+    .mb-4 { margin-bottom: 1rem; } .mb-5 { margin-bottom: 1.25rem; }
+    .mb-6 { margin-bottom: 1.5rem; } .mb-8 { margin-bottom: 2rem; }
+    .mt-1 { margin-top: .25rem; } .mt-2 { margin-top: .5rem; }
+    .mt-4 { margin-top: 1rem; } .mt-auto { margin-top: auto; }
+    .-mt-1 { margin-top: -.25rem; }
+    .mr-1 { margin-right: .25rem; } .mr-2 { margin-right: .5rem; }
+
+    /* Flex */
+    .flex { display: flex; } .inline-flex { display: inline-flex; }
+    .flex-col { flex-direction: column; }
+    .items-center { align-items: center; }
+    .justify-center { justify-content: center; }
+    .justify-between { justify-content: space-between; }
+    .justify-end { justify-content: flex-end; }
+    .gap-2 { gap: .5rem; } .gap-3 { gap: .75rem; } .gap-4 { gap: 1rem; }
+    .gap-x-2 { column-gap: .5rem; } .gap-x-3 { column-gap: .75rem; } .gap-x-4 { column-gap: 1rem; }
+    .flex-col { flex-direction: column; }
+    .overflow-hidden { overflow: hidden; } .overflow-auto { overflow: auto; }
+    .max-h-\[85vh\] { max-height: 85vh; } .max-h-\[420px\] { max-height: 420px; }
+    .w-full { width: 100%; } .h-full { height: 100%; }
+    .w-2 { width: .5rem; } .h-2 { height: .5rem; }
+    .w-9 { width: 2.25rem; } .h-9 { height: 2.25rem; }
+    .w-10 { width: 2.5rem; } .h-10 { height: 2.5rem; }
+    .w-20 { width: 5rem; } .h-1 { height: .25rem; }
+    .min-h-\[180px\] { min-height: 180px; }
+    .max-w-4xl { max-width: 56rem; }
+    .max-w-md { max-width: 28rem; }
+    .max-w-\[340px\] { max-width: 340px; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Grid */
+    .grid { display: grid; }
+    .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    /* Display */
+    .hidden { display: none !important; }
+    .block { display: block; }
+    .sticky { position: sticky; } .top-0 { top: 0; }
+    .fixed { position: fixed; } .inset-0 { inset: 0; }
+    .z-50 { z-index: 50; }
+    .relative { position: relative; }
+
+    /* Typography */
+    .text-xs { font-size: .75rem; line-height: 1rem; }
+    .text-sm { font-size: .875rem; line-height: 1.25rem; }
+    .text-base { font-size: 1rem; line-height: 1.5rem; }
+    .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+    .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+    .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+    .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+    .text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
+    .text-\[10px\] { font-size: 10px; }
+    .text-\[11px\] { font-size: 11px; }
+    .font-medium { font-weight: 500; }
+    .font-semibold { font-weight: 600; }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    .tracking-tight { letter-spacing: -.025em; }
+    .tracking-widest { letter-spacing: .1em; }
+    .tracking-\[2px\] { letter-spacing: 2px; }
+    .tracking-\[1px\] { letter-spacing: 1px; }
+    .uppercase { text-transform: uppercase; }
+    .text-left { text-align: left; } .text-center { text-align: center; } .text-right { text-align: right; }
+    .underline { text-decoration: underline; }
+    .opacity-60 { opacity: .6; }
+
+    /* Colors */
+    .text-white { color: #fff; }
+    .text-slate-200 { color: #e2e8f0; }
+    .text-slate-300 { color: #cbd5e1; }
+    .text-slate-400 { color: #94a3b8; }
+    .text-slate-500 { color: #64748b; }
+    .text-emerald-400 { color: #34d399; }
+    .text-amber-400 { color: #fbbf24; }
+    .text-blue-400 { color: #60a5fa; }
+    .text-violet-400 { color: #a78bfa; }
+    .text-red-400 { color: #f87171; }
+    .text-yellow-400 { color: #facc15; }
+    .bg-slate-950 { background-color: #020617; }
+    .bg-slate-900 { background-color: #0f172a; }
+    .bg-slate-800 { background-color: #1e293b; }
+    .bg-slate-700 { background-color: #334155; }
+    .bg-white { background-color: #fff; }
+    .text-slate-950 { color: #020617; }
+    .bg-emerald-500 { background-color: #10b981; }
+    .bg-emerald-600 { background-color: #059669; }
+    .bg-emerald-500\/10 { background-color: rgb(16 185 129 / .1); }
+    .bg-yellow-500\/20 { background-color: rgb(234 179 8 / .2); }
+    .bg-amber-500\/10 { background-color: rgb(245 158 11 / .1); }
+    .bg-blue-500\/10 { background-color: rgb(59 130 246 / .1); }
+    .bg-red-500\/10 { background-color: rgb(239 68 68 / .1); }
+    .bg-black\/70 { background-color: rgb(0 0 0 / .7); }
+    .bg-slate-900\/60 { background-color: rgb(15 23 42 / .6); }
+    .bg-slate-800\/50 { background-color: rgb(30 41 59 / .5); }
+    .text-yellow-400 { color: #facc15; }
+
+    /* Borders */
+    .border { border-width: 1px; border-style: solid; }
+    .border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+    .border-t { border-top-width: 1px; border-top-style: solid; }
+    .border-slate-700 { border-color: #334155; }
+    .border-slate-800 { border-color: #1e293b; }
+    .border-emerald-400 { border-color: #34d399; }
+    .border-emerald-500 { border-color: #10b981; }
+    .divide-y > * + * { border-top: 1px solid; }
+    .divide-slate-800 > * + * { border-color: #1e293b; }
+
+    /* Border radius */
+    .rounded { border-radius: .25rem; }
+    .rounded-full { border-radius: 9999px; }
+    .rounded-lg { border-radius: .5rem; }
+    .rounded-xl { border-radius: .75rem; }
+    .rounded-2xl { border-radius: 1rem; }
+    .rounded-3xl { border-radius: 1.5rem; }
+
+    /* Shadows */
+    .shadow-md { box-shadow: 0 4px 6px -1px rgb(0 0 0/.1),0 2px 4px -2px rgb(0 0 0/.1); }
+    .shadow-lg { box-shadow: 0 10px 15px -3px rgb(0 0 0/.1),0 4px 6px -4px rgb(0 0 0/.1); }
+    .shadow-emerald-500\/30 { box-shadow: 0 10px 15px -3px rgb(16 185 129 / .3); }
+
+    /* Transitions */
+    .transition-all { transition: all .15s ease; }
+    .transition-colors { transition: color .15s ease, background-color .15s ease, border-color .15s ease; }
+    .scale-\[1\.02\] { transform: scale(1.02); }
+
+    /* Resize */
+    .resize-y { resize: vertical; }
+    .outline-none { outline: none; }
+
+    /* Table */
+    table { border-collapse: collapse; width: 100%; }
+    .w-full { width: 100%; }
+    th, td { padding: 0; }
+
+    /* Hover states */
+    .hover\:bg-slate-700:hover { background-color: #334155; }
+    .hover\:bg-slate-200:hover { background-color: #e2e8f0; }
+    .hover\:bg-slate-800\/50:hover { background-color: rgb(30 41 59/.5); }
+    .hover\:bg-emerald-500:hover { background-color: #10b981; }
+    .hover\:bg-slate-700:hover { background-color: #334155; }
+    .hover\:text-white:hover { color: #fff; }
+    .hover\:text-slate-200:hover { color: #e2e8f0; }
+    .active\:bg-emerald-700:active { background-color: #047857; }
+    .focus\:border-emerald-500:focus { border-color: #10b981; }
+
+    /* Backdrop blur */
+    .backdrop-blur-sm { backdrop-filter: blur(4px); }
+
+    /* Animations */
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    @keyframes spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    .animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+    .animate-spin  { animation: spin 1s linear infinite; }
+    .fa-spin { animation: spin 1s linear infinite; }
+
+    /* Gradient */
+    .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
+    .from-emerald-400 { --tw-gradient-stops: #34d399, var(--tw-gradient-to, transparent); }
+    .to-emerald-500   { --tw-gradient-to: #10b981; }
+
+    /* Responsive (md = 768px, sm = 640px, lg = 1024px) */
+    @media (min-width: 640px) {
+      .sm\:grid-cols-8 { grid-template-columns: repeat(8, minmax(0,1fr)); }
+    }
+    @media (min-width: 768px) {
+      .md\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    }
+    @media (min-width: 1024px) {
+      .lg\:col-span-4 { grid-column: span 4 / span 4; }
+      .lg\:col-span-1 { grid-column: span 1 / span 1; }
+      .lg\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0,1fr)); }
+    }
+
+    /* Custom */
     .stat-card { transition: transform .1s ease; }
     .result-row:hover { background-color: #f8fafc; }
-    .log-line { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.75rem; }
+    .log-line { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace; font-size: .75rem; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-200">
@@ -25,7 +225,7 @@
     <div class="flex items-center justify-between mb-8">
       <div class="flex items-center gap-x-3">
         <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
-          <i class="fa-solid fa-bolt text-white text-2xl"></i>
+          <svg class="icon icon-fill icon-2xl" style="color:#fff" viewBox="0 0 24 24"><path d="M13 2L4.09 12.26a1 1 0 0 0 .91 1.64L11 13l-2 9 9.91-10.26a1 1 0 0 0-.91-1.64L13 11l2-9z"/></svg>
         </div>
         <div>
           <h1 class="text-3xl font-semibold tracking-tight">Concurro</h1>
@@ -38,7 +238,7 @@
           <span id="pool-status">Pool running</span>
         </div>
         <a href="https://github.com/bhavyavj/Concurro" target="_blank" class="flex items-center gap-x-2 text-slate-400 hover:text-slate-200">
-          <i class="fa-brands fa-github"></i>
+          <svg class="icon icon-fill" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.021c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.482 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.021C22 6.484 17.522 2 12 2z"/></svg>
           <span>GitHub</span>
         </a>
       </div>
@@ -75,7 +275,7 @@
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
           <div class="flex items-center gap-3">
-            <i class="fa-solid fa-bolt text-emerald-400"></i>
+            <svg class="icon icon-fill text-emerald-400" viewBox="0 0 24 24"><path d="M13 2L4.09 12.26a1 1 0 0 0 .91 1.64L11 13l-2 9 9.91-10.26a1 1 0 0 0-.91-1.64L13 11l2-9z"/></svg>
             <div>
               <div class="text-slate-400 text-xs tracking-widest">ACTIVE WORKERS</div>
               <div id="active-workers" class="text-3xl font-semibold tabular-nums text-emerald-400">0</div>
@@ -84,7 +284,7 @@
         </div>
         <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
           <div class="flex items-center gap-3">
-            <i class="fa-solid fa-layer-group text-amber-400"></i>
+            <svg class="icon text-amber-400" viewBox="0 0 24 24"><path d="M2 5h20v3H2zm0 5.5h20v3H2zm0 5.5h20v3H2z"/></svg>
             <div>
               <div class="text-slate-400 text-xs tracking-widest">QUEUE DEPTH</div>
               <div id="queue-depth" class="text-3xl font-semibold tabular-nums">0</div>
@@ -93,7 +293,7 @@
         </div>
         <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
           <div class="flex items-center gap-3">
-            <i class="fa-solid fa-play text-blue-400"></i>
+            <svg class="icon text-blue-400" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             <div>
               <div class="text-slate-400 text-xs tracking-widest">JOBS RUNNING</div>
               <div id="jobs-running" class="text-3xl font-semibold tabular-nums">0</div>
@@ -102,7 +302,7 @@
         </div>
         <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
           <div class="flex items-center gap-3">
-            <i class="fa-solid fa-check-double text-violet-400"></i>
+            <svg class="icon text-violet-400" viewBox="0 0 24 24"><path d="m1.5 12.5 5 5L18 6m-4 0 5 5"/></svg>
             <div>
               <div class="text-slate-400 text-xs tracking-widest">ITEMS PROCESSED</div>
               <div id="items-processed" class="text-3xl font-semibold tabular-nums">0</div>
@@ -115,7 +315,7 @@
     <!-- The Flow (to help understand everything) -->
     <div class="mb-8 bg-slate-900/60 border border-slate-700 rounded-3xl p-6">
       <h3 class="font-semibold mb-4 flex items-center gap-2 text-lg">
-        <i class="fa-solid fa-project-diagram text-emerald-400"></i> 
+        <svg class="icon text-emerald-400" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12h4m2-5.27A2 2 0 0 0 17 7m-4 5 4 5.27A2 2 0 0 0 17 17"/></svg>
         How the whole flow works (what you're watching)
       </h3>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
@@ -148,7 +348,7 @@
         </div>
         <button onclick="submitDemoJob()" 
                 class="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium flex items-center gap-x-2">
-          <i class="fa-solid fa-play mr-1"></i>
+          <svg class="icon" style="margin-right:.25rem" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           Submit 25 Demo URLs
         </button>
       </div>
@@ -165,7 +365,7 @@
                    class="bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm mb-3">
             <button type="submit"
                     class="mt-auto bg-white text-slate-950 hover:bg-slate-200 font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-x-2">
-              <i class="fa-solid fa-paper-plane"></i>
+              <svg class="icon" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2 15 22l-4-9-9-4 20-7z"/></svg>
               <span>Submit Job</span>
             </button>
           </div>
@@ -181,7 +381,7 @@
       </div>
       <button onclick="loadJobs()" 
               class="text-xs px-4 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl flex items-center gap-x-2 transition-colors">
-        <i class="fa-solid fa-sync text-xs"></i> 
+        <svg class="icon" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         <span>Refresh</span>
       </button>
     </div>
@@ -221,7 +421,7 @@
             <div id="modal-job-id" class="font-mono text-lg text-white"></div>
           </div>
           <button onclick="hideJobDetail()" class="text-slate-400 hover:text-white p-2">
-            <i class="fa-solid fa-times text-xl"></i>
+            <svg class="icon icon-xl" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
 
@@ -259,7 +459,7 @@
           <span class="text-emerald-400 text-xs tracking-[2px]">SELECTED JOB</span>
           <h3 id="detail-id" class="font-mono text-lg"></h3>
         </div>
-        <button onclick="hideDetail()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times fa-lg"></i></button>
+        <button onclick="hideDetail()" class="text-slate-400 hover:text-white"><svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       </div>
 
       <div id="detail-progress" class="mb-6"></div>
@@ -296,7 +496,7 @@
           ? 'bg-emerald-500 border-emerald-400 text-white shadow-emerald-500/30 shadow-lg scale-[1.02]' 
           : 'bg-slate-800 border-slate-700 text-slate-400'}`;
         div.innerHTML = isActive 
-          ? `<i class="fa-solid fa-cog fa-spin mr-1"></i> W${i+1}` 
+          ? `<svg class="icon animate-spin" style="margin-right:.25rem" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10"/></svg> W${i+1}` 
           : `<span class="opacity-60">W${i+1}</span>`;
         container.appendChild(div);
       }
@@ -324,7 +524,7 @@
       // Brief "checking" message. 
       // On empty or error we restore the nice default empty state (big button + explanation of the flow) 
       // that is already in the HTML. This stops the stuck Loading... and the "null innerHTML" crash.
-      area.innerHTML = `<div class="py-5 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Checking jobs...</div>`;
+      area.innerHTML = `<div class="py-5 text-center text-slate-400"><svg class="icon animate-spin" style="margin-right:.5rem" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10"/></svg>Checking jobs...</div>`;
 
       try {
         const res = await fetch(API + '/api/jobs');

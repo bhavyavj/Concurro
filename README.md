@@ -1,20 +1,17 @@
 # Concurro
 
-**High-concurrency job processing platform** built in Go — designed as a portfolio project to demonstrate production-grade backend engineering skills.
+**High-concurrency job processing platform** built in Go.
 
-Concurro lets you submit batch jobs (e.g. bulk URL analysis) that are processed by a configurable pool of concurrent workers. It exposes both a clean REST API and a powerful CLI, plus a simple live web dashboard to visualize the parallelism in action.
+Concurro lets you submit batch jobs (e.g. bulk URL analysis) that are processed by a configurable pool of concurrent workers. It exposes a REST API, a CLI, and a live web dashboard to visualize the parallelism in action.
 
-## Why this project?
+## Features at a glance
 
-This project was built specifically to showcase skills valued by remote backend Go roles:
-
-- **Deep concurrency mastery**: Custom bounded worker pool using channels, context, WaitGroups, cancellation, and graceful shutdown.
-- **Clean architecture**: Clear separation (handlers → service/queue → workers → store), interface-based design, testable components.
-- **Real production patterns**: Structured logging (`slog`), context everywhere, DB transactions where appropriate, health endpoints, configurable via env/flags.
-- **CLI + HTTP service**: Dual interface using Cobra + Chi — common in real Go systems (internal tools + public API).
-- **Persistence + observability**: SQLite (CGO-free), job history, progress tracking.
-- **Easy to demo**: Docker one-command run + live web UI that shows workers processing items in parallel.
-- **Well-documented**: Architecture decisions, concurrency patterns, and how to extend it are explained.
+- Custom bounded worker pool using goroutines, channels, context cancellation, and graceful shutdown
+- Clean architecture: handlers → queue → workers → store, interface-based and testable
+- Structured logging (`slog`), health/readiness endpoints, configurable via env/flags
+- Dual interface: REST API (Chi) + CLI (Cobra)
+- SQLite persistence (CGO-free), job history, per-item result tracking
+- Docker one-command run + live web dashboard
 
 ## Key Features
 
@@ -171,7 +168,7 @@ The worker pool is started inside the API server. Workers pull work items from a
 **In simple terms**: You throw a list of work at it. Go's concurrency (goroutines + channels) lets many workers do the work at the same time instead of one after another. The dashboard makes the parallelism visible.
 ```
 
-### The Worker Pool (most important part for interviews)
+### The Worker Pool
 
 The pool is deliberately custom-built (not using a library) to demonstrate:
 
@@ -230,7 +227,3 @@ The architecture was intentionally designed to be extensible without touching th
 ## License
 
 MIT
-
----
-
-Built as a portfolio project to demonstrate strong Go backend and concurrency skills for remote opportunities.

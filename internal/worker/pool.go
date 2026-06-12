@@ -1,33 +1,11 @@
 package worker
 
-/*
-Package worker implements the heart of Concurro: a bounded concurrent worker pool.
-
-WHY THIS EXISTS (for recruiters / interview talking points):
-- In normal Go code you might do: for _, url := range urls { process(url) }  → this is sequential and slow.
-- Here we want to process many items *at the same time* safely (bounded parallelism).
-- We use a fixed number of goroutines (workers) pulling from a channel (the queue).
-- This pattern is extremely common in real backend systems: background job processors,
-  data pipelines, web crawlers, bulk API callers, image processors, etc.
-
-KEY CONCEPTS DEMONSTRATED:
-- Bounded concurrency (we never have more than N workers even if you submit 10,000 items)
-- Work queue as a channel
-- Context cancellation (both global shutdown and per-job cancellation)
-- Graceful shutdown (drain in-flight work instead of killing goroutines)
-- Progress feedback back into the store
-- Decoupling "what to do" (Processor interface) from "how to schedule it"
-
-When you submit a job with 50 URLs from the UI or CLI:
-  1. We create a Job record in SQLite
-  2. We push 50 WorkItem{JobID, URL} into the workCh channel
-  3. The 8 (default) worker goroutines wake up and compete to receive from the channel
-  4. Each worker calls the URLProcessor (real HTTP + title extraction + timing)
-  5. Result is written back to the DB → UI/CLI can see it live
-  6. When all items for a job are done, the job is auto-marked completed
-
-This file + processor/processor.go + the handlers are the main things you should be able to explain.
-*/
+// Package worker implements a bounded concurrent worker pool.
+//
+// A fixed number of goroutines pull [WorkItem] values from a shared channel,
+// process each item via the registered [processor.Processor], and write results
+// back to the [store.Store]. The pool supports per-job cancellation and drains
+// in-flight work gracefully on shutdown.
 
 import (
 	"context"

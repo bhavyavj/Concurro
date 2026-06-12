@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -85,7 +87,10 @@ func (h *JobsHandler) SubmitJob(w http.ResponseWriter, r *http.Request) {
 		WorkerCount: wc,
 	}
 
-	if err := h.store.CreateJob(r.Context(), j); err != nil {
+	// Use background context with timeout for DB to avoid "context deadline exceeded" when workers are writing.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := h.store.CreateJob(ctx, j); err != nil {
 		h.log.Error("create job failed", "error", err)
 		http.Error(w, "failed to create job", http.StatusInternalServerError)
 		return
@@ -109,7 +114,10 @@ func (h *JobsHandler) SubmitJob(w http.ResponseWriter, r *http.Request) {
 
 // ListJobs returns recent jobs (lightweight).
 func (h *JobsHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
-	jobs, err := h.store.ListJobs(r.Context(), 100)
+	// Use background context with timeout for DB list to avoid deadline under worker contention.
+	listCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	jobs, err := h.store.ListJobs(listCtx, 100)
 	if err != nil {
 		http.Error(w, "failed to list jobs", http.StatusInternalServerError)
 		return
@@ -123,7 +131,8 @@ func (h *JobsHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	var out []summary
 	for _, j := range jobs {
-		done, total := j.Progress()
+		done := j.ResultCount
+		total := j.TotalItems
 		prog := 0
 		if total > 0 {
 			prog = done * 100 / total

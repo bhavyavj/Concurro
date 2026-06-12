@@ -217,6 +217,7 @@ func (s *SQLiteStore) ListJobs(ctx context.Context, limit int) ([]*job.Job, erro
 		// For list we load lightweight results count only (avoid heavy load)
 		var resCount int
 		s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM job_results WHERE job_id = ?`, j.ID).Scan(&resCount)
+		j.ResultCount = resCount
 		j.Results = make([]job.ItemResult, 0, resCount) // just to set length for progress
 
 		jobs = append(jobs, &j)

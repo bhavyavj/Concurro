@@ -56,24 +56,99 @@
       </div>
     </div>
 
-    <!-- Live Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <div class="text-slate-400 text-xs tracking-widest">ACTIVE WORKERS</div>
-        <div id="active-workers" class="text-4xl font-semibold tabular-nums mt-1 text-emerald-400">0</div>
+    <!-- Live Stats + Worker Pool Viz -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="uppercase tracking-[2px] text-xs text-emerald-400 font-medium">Live Concurrency</span>
+          <h2 class="text-2xl font-semibold">Worker Pool Status</h2>
+        </div>
+        <div class="text-xs text-slate-400">Updates every ~1.4s</div>
       </div>
-      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <div class="text-slate-400 text-xs tracking-widest">QUEUE DEPTH</div>
-        <div id="queue-depth" class="text-4xl font-semibold tabular-nums mt-1">0</div>
+
+      <!-- Visual Worker Pool -->
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-4">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="text-sm font-medium">Active Workers</div>
+          <div id="active-workers-badge" 
+               class="px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-sm font-mono tabular-nums">0 / 8</div>
+        </div>
+        
+        <div id="worker-viz" class="grid grid-cols-4 sm:grid-cols-8 gap-3">
+          <!-- Populated by JS: 8 worker dots -->
+        </div>
+        
+        <div class="mt-4 text-xs text-slate-400 flex items-center gap-2">
+          <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+          Green = busy processing an item right now
+        </div>
       </div>
-      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <div class="text-slate-400 text-xs tracking-widest">JOBS RUNNING</div>
-        <div id="jobs-running" class="text-4xl font-semibold tabular-nums mt-1">0</div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-bolt text-emerald-400"></i>
+            <div>
+              <div class="text-slate-400 text-xs tracking-widest">ACTIVE WORKERS</div>
+              <div id="active-workers" class="text-3xl font-semibold tabular-nums text-emerald-400">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-layer-group text-amber-400"></i>
+            <div>
+              <div class="text-slate-400 text-xs tracking-widest">QUEUE DEPTH</div>
+              <div id="queue-depth" class="text-3xl font-semibold tabular-nums">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-play text-blue-400"></i>
+            <div>
+              <div class="text-slate-400 text-xs tracking-widest">JOBS RUNNING</div>
+              <div id="jobs-running" class="text-3xl font-semibold tabular-nums">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-check-double text-violet-400"></i>
+            <div>
+              <div class="text-slate-400 text-xs tracking-widest">ITEMS PROCESSED</div>
+              <div id="items-processed" class="text-3xl font-semibold tabular-nums">0</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <div class="text-slate-400 text-xs tracking-widest">ITEMS PROCESSED</div>
-        <div id="items-processed" class="text-4xl font-semibold tabular-nums mt-1">0</div>
+    </div>
+
+    <!-- The Flow (to help understand everything) -->
+    <div class="mb-8 bg-slate-900/60 border border-slate-700 rounded-3xl p-6">
+      <h3 class="font-semibold mb-4 flex items-center gap-2 text-lg">
+        <i class="fa-solid fa-project-diagram text-emerald-400"></i> 
+        How the whole flow works (what you're watching)
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+          <div class="font-medium text-emerald-400 mb-1">1. Submit</div>
+          <div class="text-slate-300">You send a batch of work (URLs or log lines) through the form or CLI.</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+          <div class="font-medium text-emerald-400 mb-1">2. Queue</div>
+          <div class="text-slate-300">Items go into a channel queue. The bounded pool of goroutines pulls from it.</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+          <div class="font-medium text-emerald-400 mb-1">3. Concurrent Work</div>
+          <div class="text-slate-300">Up to 8 workers run at the same time (real Go goroutines). Watch the viz above light up.</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+          <div class="font-medium text-emerald-400 mb-1">4. Results</div>
+          <div class="text-slate-300">Each result is written back instantly. The table below updates live via polling.</div>
+        </div>
       </div>
+      <div class="text-xs text-slate-400 mt-4">This is a live demonstration of bounded concurrency, channels, context cancellation and graceful shutdown in Go.</div>
     </div>
 
     <!-- Submit Form -->
@@ -176,13 +251,37 @@
     const API = '';
     let pollInterval = null;
 
+    function renderWorkerViz(active) {
+      const container = document.getElementById('worker-viz');
+      if (!container) return;
+      container.innerHTML = '';
+      const total = 8;
+      for (let i = 0; i < total; i++) {
+        const isActive = i < active;
+        const div = document.createElement('div');
+        div.className = `h-9 rounded-2xl flex items-center justify-center text-xs font-medium border transition-all ${isActive 
+          ? 'bg-emerald-500 border-emerald-400 text-white shadow-emerald-500/30 shadow-lg scale-[1.02]' 
+          : 'bg-slate-800 border-slate-700 text-slate-400'}`;
+        div.innerHTML = isActive 
+          ? `<i class="fa-solid fa-cog fa-spin mr-1"></i> W${i+1}` 
+          : `<span class="opacity-60">W${i+1}</span>`;
+        container.appendChild(div);
+      }
+      const badge = document.getElementById('active-workers-badge');
+      if (badge) badge.textContent = `${active} / ${total}`;
+    }
+
     async function fetchStats() {
       try {
         const res = await fetch(API + '/api/stats');
         const data = await res.json();
-        document.getElementById('active-workers').textContent = data.active_workers ?? 0;
+        const active = data.active_workers ?? 0;
+        document.getElementById('active-workers').textContent = active;
         document.getElementById('queue-depth').textContent = data.queue_depth ?? 0;
-      } catch (e) {}
+        renderWorkerViz(active);
+      } catch (e) {
+        console.warn('Stats fetch failed', e);
+      }
     }
 
     async function loadJobs() {

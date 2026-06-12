@@ -37,6 +37,7 @@ type Job struct {
 	TotalItems   int           `json:"total_items"`
 	SuccessCount int           `json:"success_count"`
 	FailureCount int           `json:"failure_count"`
+	ResultCount  int           `json:"result_count"` // used for list progress
 }
 
 // IsTerminal returns true if the job is in a final state.

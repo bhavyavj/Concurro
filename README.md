@@ -44,12 +44,26 @@ This project was built specifically to showcase skills valued by remote backend 
 
 ### 1. Start the server (Terminal 1)
 
+The easiest way is using Make:
+
 ```bash
 cd ~/Projects/concurro
-go run ./cmd/api serve
+
+# Recommended: run in background with logs + easy stop
+make serve-bg
+
+# Or run in foreground (blocks your terminal)
+make serve
 ```
 
-Leave this running. The server also starts the worker pool.
+Useful commands:
+- `make stop` — cleanly stop the background server (or kill anything on port 8080)
+- `make restart` — stop + start again
+- `make status` — check if it's running
+- `make logs` — follow the server output
+- `make help` — see all available targets
+
+The server also starts the worker pool automatically.
 
 Open your browser to **http://localhost:8080** — you'll see a live dashboard with explanations of the real problems the architecture addresses.
 

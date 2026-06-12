@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Concurro • Concurrent Job Platform</title>
+  <!-- 
+    Using Tailwind Play CDN for this single-file, zero-build demo.
+    This is intentional for a clean portfolio example (the entire UI is one HTML file served by Go).
+    In a real production app we would use the Tailwind CLI or PostCSS.
+    The warning in console is harmless for this demo.
+  -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
@@ -38,24 +44,99 @@
       </div>
     </div>
 
-    <!-- Live Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <div class="text-slate-400 text-xs tracking-widest">ACTIVE WORKERS</div>
-        <div id="active-workers" class="text-4xl font-semibold tabular-nums mt-1 text-emerald-400">0</div>
+    <!-- Live Stats + Worker Pool Viz -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="uppercase tracking-[2px] text-xs text-emerald-400 font-medium">Live Concurrency</span>
+          <h2 class="text-2xl font-semibold">Worker Pool Status</h2>
+        </div>
+        <div class="text-xs text-slate-400">Updates every ~1.4s</div>
       </div>
-      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <div class="text-slate-400 text-xs tracking-widest">QUEUE DEPTH</div>
-        <div id="queue-depth" class="text-4xl font-semibold tabular-nums mt-1">0</div>
+
+      <!-- Visual Worker Pool -->
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-4">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="text-sm font-medium">Active Workers</div>
+          <div id="active-workers-badge" 
+               class="px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-sm font-mono tabular-nums">0 / 8</div>
+        </div>
+        
+        <div id="worker-viz" class="grid grid-cols-4 sm:grid-cols-8 gap-3">
+          <!-- Populated by JS: 8 worker dots -->
+        </div>
+        
+        <div class="mt-4 text-xs text-slate-400 flex items-center gap-2">
+          <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+          Green = busy processing an item right now
+        </div>
       </div>
-      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <div class="text-slate-400 text-xs tracking-widest">JOBS RUNNING</div>
-        <div id="jobs-running" class="text-4xl font-semibold tabular-nums mt-1">0</div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-bolt text-emerald-400"></i>
+            <div>
+              <div class="text-slate-400 text-xs tracking-widest">ACTIVE WORKERS</div>
+              <div id="active-workers" class="text-3xl font-semibold tabular-nums text-emerald-400">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-layer-group text-amber-400"></i>
+            <div>
+              <div class="text-slate-400 text-xs tracking-widest">QUEUE DEPTH</div>
+              <div id="queue-depth" class="text-3xl font-semibold tabular-nums">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-play text-blue-400"></i>
+            <div>
+              <div class="text-slate-400 text-xs tracking-widest">JOBS RUNNING</div>
+              <div id="jobs-running" class="text-3xl font-semibold tabular-nums">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-check-double text-violet-400"></i>
+            <div>
+              <div class="text-slate-400 text-xs tracking-widest">ITEMS PROCESSED</div>
+              <div id="items-processed" class="text-3xl font-semibold tabular-nums">0</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="stat-card bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <div class="text-slate-400 text-xs tracking-widest">ITEMS PROCESSED</div>
-        <div id="items-processed" class="text-4xl font-semibold tabular-nums mt-1">0</div>
+    </div>
+
+    <!-- The Flow (to help understand everything) -->
+    <div class="mb-8 bg-slate-900/60 border border-slate-700 rounded-3xl p-6">
+      <h3 class="font-semibold mb-4 flex items-center gap-2 text-lg">
+        <i class="fa-solid fa-project-diagram text-emerald-400"></i> 
+        How the whole flow works (what you're watching)
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+          <div class="font-medium text-emerald-400 mb-1">1. Submit</div>
+          <div class="text-slate-300">You send a batch of work (URLs or log lines) through the form or CLI.</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+          <div class="font-medium text-emerald-400 mb-1">2. Queue</div>
+          <div class="text-slate-300">Items go into a channel queue. The bounded pool of goroutines pulls from it.</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+          <div class="font-medium text-emerald-400 mb-1">3. Concurrent Work</div>
+          <div class="text-slate-300">Up to 8 workers run at the same time (real Go goroutines). Watch the viz above light up.</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+          <div class="font-medium text-emerald-400 mb-1">4. Results</div>
+          <div class="text-slate-300">Each result is written back instantly. The table below updates live via polling.</div>
+        </div>
       </div>
+      <div class="text-xs text-slate-400 mt-4">This is a live demonstration of bounded concurrency, channels, context cancellation and graceful shutdown in Go.</div>
     </div>
 
     <!-- Submit Form -->
@@ -92,34 +173,86 @@
       </form>
     </div>
 
-    <!-- Jobs List -->
+    <!-- Recent Jobs - much nicer empty + loading states -->
     <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-xl font-semibold">Recent Jobs</h2>
+      <div>
+        <h2 class="text-xl font-semibold">Recent Jobs</h2>
+        <p class="text-xs text-slate-400">Live view of everything the workers have processed. Click the big button below if the table is empty — it will create a demo job so you can see the concurrency in action immediately.</p>
+      </div>
       <button onclick="loadJobs()" 
-              class="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center gap-x-1.5">
-        <i class="fa-solid fa-sync text-xs"></i> <span>Refresh</span>
+              class="text-xs px-4 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl flex items-center gap-x-2 transition-colors">
+        <i class="fa-solid fa-sync text-xs"></i> 
+        <span>Refresh</span>
       </button>
     </div>
 
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-slate-800 text-slate-400">
-            <th class="text-left py-3 px-6 font-medium">ID</th>
-            <th class="text-left py-3 px-4 font-medium">Status</th>
-            <th class="text-left py-3 px-4 font-medium">Progress</th>
-            <th class="text-left py-3 px-4 font-medium">Items</th>
-            <th class="text-left py-3 px-4 font-medium">Submitted</th>
-            <th class="text-right py-3 px-6 font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="jobs-tbody" class="divide-y divide-slate-800">
-          <!-- Populated by JS -->
-        </tbody>
-      </table>
+    <div id="jobs-area" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 min-h-[180px]">
+      <!-- This is the important part that was stuck on loading. 
+           We now default to a beautiful, useful empty state with a big button.
+           loadJobs() will replace it with real data if available. -->
+      <div class="text-center py-8">
+        <div class="text-4xl mb-3">📭</div>
+        <div class="font-semibold text-lg mb-2">No jobs yet — perfect for demoing the flow</div>
+        <div class="text-sm text-slate-400 mb-5 max-w-md mx-auto">
+          Click the button below. It will create a batch of 25 URLs. 
+          Watch the 8 worker cards above light up as they process in parallel, 
+          and see this area turn into a live table with progress.
+        </div>
+        <button onclick="submitDemoJobAndRefresh()" 
+                class="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-2xl font-semibold text-base shadow-md">
+          Submit Demo Batch Now &amp; Watch It Render
+        </button>
+        <div class="mt-4 text-xs text-slate-500">
+          (Or paste your own list in the form above and submit)
+        </div>
+      </div>
     </div>
 
-    <!-- Selected Job Detail -->
+    <!-- Job Detail Modal (much nicer than the old inline section) -->
+    <div id="job-modal" onclick="if (event.target.id === 'job-modal') hideJobDetail()" 
+         class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div onclick="event.stopImmediatePropagation()" 
+           class="bg-slate-900 border border-slate-700 rounded-3xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+        
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+          <div>
+            <div class="text-xs uppercase tracking-[1px] text-emerald-400">Job Details</div>
+            <div id="modal-job-id" class="font-mono text-lg text-white"></div>
+          </div>
+          <button onclick="hideJobDetail()" class="text-slate-400 hover:text-white p-2">
+            <i class="fa-solid fa-times text-xl"></i>
+          </button>
+        </div>
+
+        <div class="p-6 overflow-auto">
+          <!-- Progress bar in modal -->
+          <div id="modal-progress" class="mb-6"></div>
+
+          <!-- Results table -->
+          <div class="text-sm font-medium mb-2 text-slate-300">Processed Items</div>
+          <div class="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400">
+                  <th class="text-left px-4 py-2.5">Item</th>
+                  <th class="text-center px-4 py-2.5">Status</th>
+                  <th class="text-right px-4 py-2.5">Latency</th>
+                  <th class="text-left px-4 py-2.5">Title / Error</th>
+                </tr>
+              </thead>
+              <tbody id="modal-results-tbody" class="divide-y divide-slate-800 font-mono"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-slate-700 text-xs text-slate-400 flex justify-end">
+          Close with ESC or click outside
+        </div>
+      </div>
+    </div>
+
+    <!-- Old inline detail kept for backward but hidden by default (we use modal now) -->
     <div id="job-detail" class="hidden mt-8 bg-slate-900 border border-slate-800 rounded-3xl p-6">
       <div class="flex justify-between items-center mb-4">
         <div>
@@ -151,67 +284,89 @@
     const API = '';
     let pollInterval = null;
 
+    function renderWorkerViz(active) {
+      const container = document.getElementById('worker-viz');
+      if (!container) return;
+      container.innerHTML = '';
+      const total = 8;
+      for (let i = 0; i < total; i++) {
+        const isActive = i < active;
+        const div = document.createElement('div');
+        div.className = `h-9 rounded-2xl flex items-center justify-center text-xs font-medium border transition-all ${isActive 
+          ? 'bg-emerald-500 border-emerald-400 text-white shadow-emerald-500/30 shadow-lg scale-[1.02]' 
+          : 'bg-slate-800 border-slate-700 text-slate-400'}`;
+        div.innerHTML = isActive 
+          ? `<i class="fa-solid fa-cog fa-spin mr-1"></i> W${i+1}` 
+          : `<span class="opacity-60">W${i+1}</span>`;
+        container.appendChild(div);
+      }
+      const badge = document.getElementById('active-workers-badge');
+      if (badge) badge.textContent = `${active} / ${total}`;
+    }
+
     async function fetchStats() {
       try {
         const res = await fetch(API + '/api/stats');
         const data = await res.json();
-        document.getElementById('active-workers').textContent = data.active_workers ?? 0;
+        const active = data.active_workers ?? 0;
+        document.getElementById('active-workers').textContent = active;
         document.getElementById('queue-depth').textContent = data.queue_depth ?? 0;
-      } catch (e) {}
+        renderWorkerViz(active);
+      } catch (e) {
+        console.warn('Stats fetch failed', e);
+      }
     }
 
     async function loadJobs() {
-      const tbody = document.getElementById('jobs-tbody');
-      tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-slate-500">Loading...</td></tr>';
+      const area = document.getElementById('jobs-area');
+      if (!area) return;
+
+      // Brief "checking" message. 
+      // On empty or error we restore the nice default empty state (big button + explanation of the flow) 
+      // that is already in the HTML. This stops the stuck Loading... and the "null innerHTML" crash.
+      area.innerHTML = `<div class="py-5 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Checking jobs...</div>`;
 
       try {
         const res = await fetch(API + '/api/jobs');
         const jobs = await res.json();
 
-        let running = 0;
-        let processed = 0;
-        tbody.innerHTML = '';
-
         if (!jobs || jobs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">No jobs yet. Submit one above!</td></tr>';
+          area.innerHTML = `
+            <tr>
+              <td colspan="6" class="px-6 py-10 text-center">
+                <div>
+                  <div class="text-lg font-semibold mb-2">No jobs yet</div>
+                  <div class="text-sm text-slate-400 mb-4">Click the button to instantly submit a demo of 25 URLs.<br>The workers will start processing them right now and the table will update live.</div>
+                  <button onclick="submitDemoJobAndRefresh()" class="px-8 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-2xl text-sm font-semibold">Submit Demo Batch Now</button>
+                </div>
+              </td>
+            </tr>`;
           return;
         }
 
         jobs.forEach(j => {
-          if (j.status === 'running') running++;
-          processed += (j.results || []).length;
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-700';
+          tr.onclick = () => showJobDetail(j.id);
 
-          const progress = j.progress || 0;
-          const row = document.createElement('tr');
-          row.className = 'hover:bg-slate-800/60 cursor-pointer';
-          row.onclick = () => showJobDetail(j.id);
-
-          const statusBadge = statusClass(j.status);
-          const actionBtn = j.status === 'running' 
-            ? '<button onclick="event.stopImmediatePropagation(); cancelJob(\'' + j.id + '\');" class="text-red-400 hover:text-red-300 text-xs px-3 py-1">Cancel</button>'
-            : '<button onclick="event.stopImmediatePropagation(); showJobDetail(\'' + j.id + '\');" class="text-emerald-400 hover:text-emerald-300 text-xs">View results</button>';
-
-          row.innerHTML = 
-            '<td class="px-6 py-3 font-mono text-emerald-400 text-xs">' + j.id + '</td>' +
-            '<td class="px-4 py-3"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-medium ' + statusBadge + '">' + j.status + '</span></td>' +
-            '<td class="px-4 py-3">' +
-              '<div class="w-28 bg-slate-800 rounded h-1.5 overflow-hidden">' +
-                '<div class="h-1.5 bg-emerald-500" style="width: ' + progress + '%"></div>' +
-              '</div>' +
-              '<div class="text-[10px] mt-0.5 text-slate-400">' + (j.done || 0) + ' / ' + (j.total_items || (j.items ? j.items.length : 0)) + '</div>' +
-            '</td>' +
-            '<td class="px-4 py-3 text-slate-400">' + (j.total_items || (j.items ? j.items.length : 0)) + '</td>' +
-            '<td class="px-4 py-3 text-slate-400 text-xs">' + new Date(j.created_at).toLocaleTimeString() + '</td>' +
-            '<td class="px-6 py-3 text-right">' + actionBtn + '</td>';
-
-          tbody.appendChild(row);
+          const p = j.progress || 0;
+          tr.innerHTML = `
+            <td class="px-3 py-2 font-mono text-xs">${j.id}</td>
+            <td class="px-3 py-2"><span class="text-xs px-2 py-0.5 rounded ${j.status=='running' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-emerald-500/20 text-emerald-400'}">${j.status}</span></td>
+            <td class="px-3 py-2"><div class="w-20 h-1 bg-slate-700 rounded"><div class="h-1 bg-emerald-500 rounded" style="width:${p}%"></div></div><span class="text-xs">${p}%</span></td>
+            <td class="px-3 py-2 text-center">${j.total_items || 0}</td>
+            <td class="px-3 py-2 text-xs text-slate-400">${new Date(j.created_at).toLocaleTimeString()}</td>
+            <td class="px-3 py-2 text-right"><button onclick="event.stopImmediatePropagation();showJobDetail('${j.id}')" class="text-xs underline">view</button></td>`;
+          area.appendChild(tr);
         });
-
-        document.getElementById('jobs-running').textContent = running;
-        document.getElementById('items-processed').textContent = processed;
       } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-red-400">Failed to load jobs</td></tr>';
+        area.innerHTML = `<tr><td colspan="6" class="px-6 py-6 text-center text-red-400">Error loading. <button onclick="loadJobs()" class="underline">Retry</button></td></tr>`;
       }
+    }
+
+    async function submitDemoJobAndRefresh() {
+      await submitDemoJob();
+      setTimeout(loadJobs, 700);
     }
 
     function statusClass(status) {
@@ -272,58 +427,87 @@
       }
     }
 
+    let currentJobId = null;
+
     async function showJobDetail(id) {
-      const detail = document.getElementById('job-detail');
-      detail.classList.remove('hidden');
+      currentJobId = id;
+      const modal = document.getElementById('job-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      document.getElementById('modal-job-id').textContent = id;
 
       try {
         const res = await fetch(API + '/api/jobs/' + id);
         const data = await res.json();
         const j = data.job || data;
 
-        document.getElementById('detail-id').textContent = j.id;
-
+        const total = data.total || (j.items ? j.items.length : 0);
+        const done = data.done || 0;
         const prog = data.progress || 0;
-        document.getElementById('detail-progress').innerHTML = 
-          '<div class="flex justify-between text-xs mb-1 text-slate-400">' +
-            '<div>' + (data.done || 0) + ' of ' + (data.total || (j.items ? j.items.length : 0)) + ' items processed</div>' +
-            '<div class="font-mono">' + prog + '%</div>' +
-          '</div>' +
-          '<div class="h-2 bg-slate-800 rounded-full overflow-hidden">' +
-            '<div class="h-2 bg-emerald-500 transition-all" style="width: ' + prog + '%"></div>' +
-          '</div>';
 
-        const tbody = document.getElementById('results-tbody');
-        tbody.innerHTML = '';
+        document.getElementById('modal-progress').innerHTML = `
+          <div class="flex justify-between text-xs mb-1.5 text-slate-400">
+            <div><span class="font-medium text-white">${done}</span> of ${total} items processed</div>
+            <div class="font-mono">${prog}%</div>
+          </div>
+          <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-2 bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all" style="width:${prog}%"></div>
+          </div>`;
+
+        const tbody = document.getElementById('modal-results-tbody');
+        area.innerHTML = '';
 
         const results = j.results || [];
         if (results.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-slate-500">No results yet — workers are processing...</td></tr>';
+          area.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-500">No individual results yet — the workers are still processing this batch.</td></tr>`;
           return;
         }
 
         results.forEach(r => {
           const tr = document.createElement('tr');
-          tr.className = 'result-row border-b border-slate-800';
-          const statusHTML = r.error 
-            ? '<span class="text-red-400">' + r.error + '</span>' 
-            : '<span class="text-emerald-400">' + r.status_code + '</span>';
+          tr.className = 'hover:bg-slate-800/50';
+          
+          let statusCell = '';
+          if (r.error) {
+            statusCell = `<span class="px-2 py-0.5 text-[10px] bg-red-500/10 text-red-400 rounded">${r.error}</span>`;
+          } else {
+            const isSuccess = r.status_code >= 200 && r.status_code < 400;
+            statusCell = `<span class="px-2 py-0.5 text-[10px] ${isSuccess ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'} rounded">${r.status_code}</span>`;
+          }
 
-          tr.innerHTML = 
-            '<td class="py-2 pr-4 truncate max-w-[380px]">' + r.url + '</td>' +
-            '<td class="py-2 text-center">' + statusHTML + '</td>' +
-            '<td class="py-2 text-right px-3 tabular-nums">' + r.latency_ms + 'ms</td>' +
-            '<td class="py-2 px-3 text-slate-400 truncate max-w-[340px]">' + (r.title || r.error || '') + '</td>';
-          tbody.appendChild(tr);
+          tr.innerHTML = `
+            <td class="px-4 py-2.5 text-[11px] truncate max-w-[340px] text-slate-300">${r.url || r.URL || ''}</td>
+            <td class="px-4 py-2.5 text-center">${statusCell}</td>
+            <td class="px-4 py-2.5 text-right tabular-nums text-slate-300">${r.latency_ms}ms</td>
+            <td class="px-4 py-2.5 text-slate-400 truncate">${r.title || r.error || ''}</td>
+          `;
+          area.appendChild(tr);
         });
       } catch (e) {
         console.error(e);
+        document.getElementById('modal-results-tbody').innerHTML = `<tr><td colspan="4" class="py-6 text-center text-red-400">Failed to load job details.</td></tr>`;
       }
     }
 
-    function hideDetail() {
-      document.getElementById('job-detail').classList.add('hidden');
+    function hideJobDetail() {
+      const modal = document.getElementById('job-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
     }
+
+    // Close modal with ESC
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('job-modal');
+        if (!modal.classList.contains('hidden')) {
+          hideJobDetail();
+        } else {
+          const oldDetail = document.getElementById('job-detail');
+          if (oldDetail) oldDetail.classList.add('hidden');
+        }
+      }
+    });
 
     async function cancelJob(id) {
       if (!confirm('Cancel this job?')) return;
@@ -350,8 +534,14 @@
 
     // Boot
     (function init() {
+      // Initial worker viz (0 workers)
+      renderWorkerViz(0);
+      
       refreshAll();
       startPolling();
+
+      // Bonus: if after 3 seconds still no jobs, the empty state will already be attractive
+      // thanks to the improved loadJobs()
     })();
   </script>
 </body>
